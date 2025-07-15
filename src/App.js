@@ -119,6 +119,7 @@ const App = () => {
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
       tg.sendData(JSON.stringify(formData));
+      console.log('Data submitted');
       tg.close();
     }
 
@@ -191,6 +192,18 @@ const App = () => {
                 {option}
               </button>
             ))}
+
+            <button
+              onClick={() => {
+                console.log('🧪 TEST BUTTON CLICKED');
+                alert('Test button works!');
+                handleSubmit();
+              }}
+              className="w-full bg-red-500 text-white py-2 rounded-lg"
+            >
+              🧪 TEST SUBMIT (TEMPORARY)
+            </button>
+
           </div>
 
           {errors.readiness && (

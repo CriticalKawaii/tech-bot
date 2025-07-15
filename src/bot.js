@@ -230,14 +230,20 @@ bot.on('callback_query', async (query) => {
 });*/
 
 bot.on('web_app_data', async (msg) => {
+  console.log('🎯 RAW MESSAGE RECEIVED:', JSON.stringify(msg, null, 2));
+
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const data = msg.web_app.data;
 
   console.log(`📊 Received Web App data from user ${userId}`);
-
+  console.log(`💬 Chat ID: ${chatId}`);
+  console.log(`📱 Data length: ${data.length} characters`);
+  console.log(`📋 Raw data: ${data.substring(0, 100)}...`);
   try {
     const formData = JSON.parse(data);
+    console.log('✅ JSON parsed successfully');
+    console.log('🏢 Company name:', formData.companyName);
 
     const applicationId = `TH-${userId}-${Date.now()}`;
 
@@ -271,16 +277,24 @@ bot.on('web_app_data', async (msg) => {
     await notifyAdministrators(application);
 
   } catch (error) {
-    console.error('❌ Error processing Web App data:', error);
+    console.error('❌ JSON parse error:', error);
+    console.error('📋 Problematic data:', data);
     await bot.sendMessage(chatId,
       'Произошла ошибка при обработке заявки. Пожалуйста, попробуйте еще раз или обратитесь в поддержку.');
   }
 });
-
+bot.on('message', (msg) => {
+  console.log('📨 ANY MESSAGE:', {
+    type: msg.chat.type,
+    from: msg.from.first_name,
+    text: msg.text?.substring(0, 50),
+    hasWebAppData: !!msg.web_app
+  });
+});
 
 async function notifyAdministrators(application) {
   const adminChatIds = [
-    848907805
+    848907805,
   ];
 
   const adminNotification = `
