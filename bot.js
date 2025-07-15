@@ -13,6 +13,11 @@ if (!process.env.BOT_TOKEN || !process.env.WEBAPP_URL) {
 
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
+if (process.env.DEBUG) {
+  bot.on('polling_error', (error) => console.log('Polling error:', error));
+  bot.on('error', (error) => console.log('Bot error:', error));
+}
+
 const userSessions = new Map();
 
 bot.onText(/\/start/, async (msg) => {
@@ -39,7 +44,7 @@ bot.onText(/\/start/, async (msg) => {
 
 
   const keyboard = {
-    inline_keyboard: [
+    keyboard: [
       [
         {
           text: '🏢 Компания',
@@ -129,7 +134,7 @@ async function handleCompanySelection(chatId, userId, messageId) {
   `;
 
   const webAppKeyboard = {
-    inline_keyboard: [
+    keyboard: [
       [
         {
           text: '📋 Заполнить заявку компании',
@@ -182,7 +187,7 @@ async function handleParticipantSelection(chatId, userId, messageId) {
   `;
 
   const backKeyboard = {
-    inline_keyboard: [
+    keyboard: [
       [
         {
           text: '◀️ Назад к выбору',
@@ -208,55 +213,54 @@ async function handleParticipantSelection(chatId, userId, messageId) {
   }
 }
 
-/*
-bot.on('callback_query', async (query) => {
-  if (query.data === 'back_to_start') {
-    await bot.answerCallbackQuery(query.id);
+bot.on('message', async (msg) => {
+  // COMPREHENSIVE DEBUG LOGGING
+  console.log('\n========== NEW MESSAGE ==========');
+  console.log('Time:', new Date().toISOString());
+  console.log('From:', msg.from.first_name, '(ID:', msg.from.id, ')');
+  console.log('Chat ID:', msg.chat.id);
+  console.log('Message type:', msg.chat.type);
+  console.log('Has text:', !!msg.text);
+  console.log('Text:', msg.text);
+  console.log('Has web_app_data:', !!msg.web_app_data);
 
-    const fakeStartMessage = {
-      chat: { id: query.message.chat.id },
-      from: query.from,
-      text: '/start'
-    };
+  if (msg.web_app_data) {
+    console.log('📱 WEB APP DATA STRUCTURE:', JSON.stringify(msg.web_app_data, null, 2));
+  }
+
+  console.log('FULL MESSAGE OBJECT:', JSON.stringify(msg, null, 2));
+  console.log('=================================\n');
+
+  if (msg.web_app_data) {
+    console.log('🎯 WEB APP DATA DETECTED!');
+    console.log('📊 Raw web app data:', JSON.stringify(msg.web_app_data, null, 2));
+
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const data = msg.web_app_data.data;
+
+    console.log(`📊 Received Web App data from user ${userId}`);
+    console.log(`💬 Chat ID: ${chatId}`);
+    console.log(`📱 Data length: ${data.length} characters`);
+    console.log(`📋 Raw data: ${data.substring(0, 100)}...`);
 
     try {
-      await bot.deleteMessage(query.message.chat.id, query.message.message_id);
-    } catch (error) {
-      console.warn('Could not delete message:', error.message);
-    }
+      const formData = JSON.parse(data);
+      console.log('✅ JSON parsed successfully');
+      console.log('🏢 Company name:', formData.companyName);
 
-    bot.emit('text', fakeStartMessage);
-  }
-});*/
+      const applicationId = `TH-${userId}-${Date.now()}`;
 
-bot.on('web_app_data', async (msg) => {
-  console.log('🎯 RAW MESSAGE RECEIVED:', JSON.stringify(msg, null, 2));
+      const application = {
+        id: applicationId,
+        userId: userId,
+        submittedAt: new Date().toISOString(),
+        data: formData
+      };
 
-  const chatId = msg.chat.id;
-  const userId = msg.from.id;
-  const data = msg.web_app.data;
+      console.log('📋 New company application:', JSON.stringify(application, null, 2));
 
-  console.log(`📊 Received Web App data from user ${userId}`);
-  console.log(`💬 Chat ID: ${chatId}`);
-  console.log(`📱 Data length: ${data.length} characters`);
-  console.log(`📋 Raw data: ${data.substring(0, 100)}...`);
-  try {
-    const formData = JSON.parse(data);
-    console.log('✅ JSON parsed successfully');
-    console.log('🏢 Company name:', formData.companyName);
-
-    const applicationId = `TH-${userId}-${Date.now()}`;
-
-    const application = {
-      id: applicationId,
-      userId: userId,
-      submittedAt: new Date().toISOString(),
-      data: formData
-    };
-
-    console.log('📋 New company application:', JSON.stringify(application, null, 2));
-
-    const confirmationText = `
+      const confirmationText = `
 🎉 Заявка успешно отправлена!
 
 📋 Номер заявки: <code>${applicationId}</code>
@@ -266,31 +270,25 @@ bot.on('web_app_data', async (msg) => {
 Информация о следующих этапах будет направлена на указанный вами email: <code>${formData.mentorEmail || 'не указан'}</code>
 
 Для подачи новой заявки используйте команду /start
-    `;
+      `;
 
-    await bot.sendMessage(chatId, confirmationText, {
-      parse_mode: 'HTML'
-    });
+      await bot.sendMessage(chatId, confirmationText, {
+        parse_mode: 'HTML'
+      });
 
-    userSessions.delete(userId);
+      userSessions.delete(userId);
 
-    await notifyAdministrators(application);
+      await notifyAdministrators(application);
 
-  } catch (error) {
-    console.error('❌ JSON parse error:', error);
-    console.error('📋 Problematic data:', data);
-    await bot.sendMessage(chatId,
-      'Произошла ошибка при обработке заявки. Пожалуйста, попробуйте еще раз или обратитесь в поддержку.');
+    } catch (error) {
+      console.error('❌ JSON parse error:', error);
+      console.error('📋 Problematic data:', data);
+      await bot.sendMessage(chatId,
+        'Произошла ошибка при обработке заявки. Пожалуйста, попробуйте еще раз или обратитесь в поддержку.');
+    }
   }
 });
-bot.on('message', (msg) => {
-  console.log('📨 ANY MESSAGE:', {
-    type: msg.chat.type,
-    from: msg.from.first_name,
-    text: msg.text?.substring(0, 50),
-    hasWebAppData: !!msg.web_app
-  });
-});
+
 
 async function notifyAdministrators(application) {
   const adminChatIds = [
@@ -319,7 +317,6 @@ async function notifyAdministrators(application) {
     }
   }
 }
-
 
 bot.onText(/\/help/, async (msg) => {
   const helpText = `
@@ -397,3 +394,10 @@ console.log('🤖 Bot starting...');
 console.log(`🔑 Bot token: ${process.env.BOT_TOKEN ? '✅ Configured' : '❌ Missing'}`);
 console.log(`🌐 Web App URL: ${process.env.WEBAPP_URL || '❌ Not configured'}`);
 console.log('✅ Bot is ready and listening for messages');
+
+bot.deleteWebHook().then(() => {
+  console.log('✅ Webhooks cleared, using polling mode');
+  console.log('✅ Bot is ready and listening for messages');
+}).catch(err => {
+  console.error('❌ Error clearing webhooks:', err);
+});

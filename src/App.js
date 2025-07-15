@@ -118,6 +118,7 @@ const App = () => {
 
     if (window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp;
+      console.log("Sending data to Telegram:", formData);
       tg.sendData(JSON.stringify(formData));
       console.log('Data submitted');
       tg.close();
@@ -160,6 +161,7 @@ const App = () => {
                 <div className="text-sm text-gray-500">В разработке</div>
               </div>
             </button>
+
           </div>
         </div>
       );
@@ -192,17 +194,6 @@ const App = () => {
                 {option}
               </button>
             ))}
-
-            <button
-              onClick={() => {
-                console.log('🧪 TEST BUTTON CLICKED');
-                alert('Test button works!');
-                handleSubmit();
-              }}
-              className="w-full bg-red-500 text-white py-2 rounded-lg"
-            >
-              🧪 TEST SUBMIT (TEMPORARY)
-            </button>
 
           </div>
 
