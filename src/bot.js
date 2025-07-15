@@ -55,11 +55,14 @@ bot.onText(/\/start/, async (msg) => {
     ]
   };
 
+  console.log('📋 Created keyboard:', JSON.stringify(keyboard, null, 2));
+
   try {
     await bot.sendMessage(chatId, welcomeText, {
       reply_markup: keyboard,
       parse_mode: 'HTML'
     });
+    console.log('✅ Welcome message sent successfully');
   } catch (error) {
     console.error('❌ Error sending welcome message:', error);
     await bot.sendMessage(chatId, 'Произошла ошибка. Попробуйте команду /start еще раз.');
@@ -70,15 +73,35 @@ bot.onText(/\/start/, async (msg) => {
 bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const userId = query.from.id;
-  const data = query.callback_data;
+  const data = query.data;
+
+  console.log(`📞 Callback query received: ${data} from user ${userId}`);
 
   await bot.answerCallbackQuery(query.id);
 
   try {
     if (data === 'user_type_company') {
+      console.log('✅ Processing company selection');
       await handleCompanySelection(chatId, userId, query.message.message_id);
     } else if (data === 'user_type_participant') {
+      console.log('✅ Processing participant selection');
       await handleParticipantSelection(chatId, userId, query.message.message_id);
+    } else if (data === 'back_to_start') {
+      console.log('✅ Processing back to start');
+
+      const fakeStartMessage = {
+        chat: { id: query.message.chat.id },
+        from: query.from,
+        text: '/start'
+      };
+
+      try {
+        await bot.deleteMessage(query.message.chat.id, query.message.message_id);
+      } catch (error) {
+        console.warn('Could not delete message:', error.message);
+      }
+
+      bot.emit('text', fakeStartMessage);
     } else {
       console.warn(`⚠️ Unknown callback data: ${data}`);
     }
@@ -140,8 +163,7 @@ async function handleCompanySelection(chatId, userId, messageId) {
   }
 }
 
-// Handle participant selection (currently not implemented)
-// This demonstrates good UX by acknowledging the user's choice even when the feature isn't ready
+// TODO
 async function handleParticipantSelection(chatId, userId, messageId) {
   console.log(`🎓 User ${userId} selected participant registration`);
 
@@ -186,7 +208,7 @@ async function handleParticipantSelection(chatId, userId, messageId) {
   }
 }
 
-
+/*
 bot.on('callback_query', async (query) => {
   if (query.data === 'back_to_start') {
     await bot.answerCallbackQuery(query.id);
@@ -205,7 +227,7 @@ bot.on('callback_query', async (query) => {
 
     bot.emit('text', fakeStartMessage);
   }
-});
+});*/
 
 bot.on('web_app_data', async (msg) => {
   const chatId = msg.chat.id;
@@ -257,10 +279,8 @@ bot.on('web_app_data', async (msg) => {
 
 
 async function notifyAdministrators(application) {
-  // Replace with actual administrator chat IDs
   const adminChatIds = [
-    // 'ADMIN_CHAT_ID_1',
-    // 'ADMIN_CHAT_ID_2'
+    848907805
   ];
 
   const adminNotification = `
@@ -359,7 +379,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Health check server running on port ${PORT}`);
 });
 
-console.log('🤖 Технохантер Telegram Bot starting...');
-console.log(`📱 Bot token: ${process.env.BOT_TOKEN ? '✅ Configured' : '❌ Missing'}`);
+console.log('🤖 Bot starting...');
+console.log(`🔑 Bot token: ${process.env.BOT_TOKEN ? '✅ Configured' : '❌ Missing'}`);
 console.log(`🌐 Web App URL: ${process.env.WEBAPP_URL || '❌ Not configured'}`);
-console.log('✅ Bot is ready and listening for messages!');
+console.log('✅ Bot is ready and listening for messages');

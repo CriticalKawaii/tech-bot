@@ -29,7 +29,7 @@ const App = () => {
 
   useEffect(() => {
     if (window.Telegram?.WebApp) {
-      const tg = window.Telegram?.WebApp;
+      const tg = window.Telegram.WebApp;
       tg.ready();
       tg.expand();
 
@@ -140,12 +140,14 @@ const App = () => {
   const steps = [
     {
       title: 'Выбор типа пользователя',
-      component: UserTypeSelection
+      component: UserTypeSelection,
+      props: { setUserType, setCurrentStep }
     },
     {
       title: 'Готовность компании',
       fields: [{ key: 'readiness', required: true }],
-      component: ReadinessStep
+      component: ReadinessStep,
+      props: { formData, updateFormData, errors }
     },
     {
       title: 'Информация о компании',
@@ -153,7 +155,8 @@ const App = () => {
         { key: 'companyName', required: true },
         { key: 'inn', required: true }
       ],
-      component: CompanyInfoStep
+      component: CompanyInfoStep,
+      props: { formData, updateFormData, errors }
     },
     {
       title: 'Информация о менторе',
@@ -163,7 +166,8 @@ const App = () => {
         { key: 'mentorPhone', required: true },
         { key: 'mentorTelegram', required: true }
       ],
-      component: MentorInfoStep
+      component: MentorInfoStep,
+      props: { formData, updateFormData, errors }
     },
     {
       title: 'Детали стажировки',
@@ -173,14 +177,16 @@ const App = () => {
         { key: 'resources', required: true },
         { key: 'shortTermGoals', required: true }
       ],
-      component: InternshipDetailsStep
+      component: InternshipDetailsStep,
+      props: { formData, updateFormData, errors }
     },
     {
       title: 'Требования к участникам',
       fields: [
         { key: 'skillRequirements', required: true }
       ],
-      component: RequirementsStep
+      component: RequirementsStep,
+      props: { formData, updateFormData, errors }
     },
     {
       title: 'Условия работы',
@@ -190,11 +196,13 @@ const App = () => {
         { key: 'employmentProspects', required: true },
         { key: 'paymentAbility', required: true }
       ],
-      component: WorkConditionsStep
+      component: WorkConditionsStep,
+      props: { formData, updateFormData, errors }
     },
     {
       title: 'Подтверждение',
-      component: ConfirmationStep
+      component: ConfirmationStep,
+      props: { formData, handleSubmit }
     }
   ];
 
@@ -203,7 +211,7 @@ const App = () => {
       <div className="space-y-6">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Добро пожаловать в Технохантер!</h1>
-          <p>
+          <p className="text-gray-600">
             Эффективный механизм ранней профессиональной интеграции студентов и аспирантов
             ведущих российских вузов в R&D-процессы технологичных компаний Москвы
           </p>
@@ -687,7 +695,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Progress bar - shows how much of the form is completed */}
       {userType && (
         <div className="w-full bg-gray-200 h-1">
           <div
@@ -698,7 +705,6 @@ const App = () => {
       )}
 
       <div className="max-w-md mx-auto p-6">
-        {/* Navigation buttons */}
         {userType && currentStep > 1 && (
           <button
             onClick={handleBack}
@@ -709,10 +715,8 @@ const App = () => {
           </button>
         )}
 
-        {/* Current step content */}
         {steps[currentStep] && React.createElement(steps[currentStep].component)}
 
-        {/* Next button (for non-Telegram environments) */}
         {userType && !window.Telegram?.WebApp && (
           <div className="mt-8 flex space-x-4">
             {currentStep > 1 && (
