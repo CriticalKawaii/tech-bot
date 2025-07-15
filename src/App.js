@@ -55,7 +55,7 @@ const App = () => {
   };
 
   const validateINN = (inn) => {
-    return /^\d{10}$|^d{12}$/.test(inn);
+    return /^\d{10}$|^\d{12}$/.test(inn);
   };
 
   const validatePhone = (phone) => {
