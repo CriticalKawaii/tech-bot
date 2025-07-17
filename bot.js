@@ -20,7 +20,7 @@ if (process.env.DEBUG) {
 
 const userSessions = new Map();
 
-bot.onText(/\/start/, async (msg) => {
+async function handleStartCommand(msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const userName = msg.from.first_name || 'Пользователь';
@@ -33,7 +33,6 @@ bot.onText(/\/start/, async (msg) => {
     chatId: chatId
   });
 
-
   const welcomeText = `
 🚀 Добро пожаловать в Технохантер, ${userName}!
 
@@ -41,7 +40,6 @@ bot.onText(/\/start/, async (msg) => {
 
 Выберите, кто вы:
   `;
-
 
   const keyboard = {
     inline_keyboard: [
@@ -72,7 +70,9 @@ bot.onText(/\/start/, async (msg) => {
     console.error('❌ Error sending welcome message:', error);
     await bot.sendMessage(chatId, 'Произошла ошибка. Попробуйте команду /start еще раз.');
   }
-});
+}
+
+bot.onText(/\/start/, handleStartCommand);
 
 
 bot.on('callback_query', async (query) => {
@@ -94,19 +94,16 @@ bot.on('callback_query', async (query) => {
     } else if (data === 'back_to_start') {
       console.log('✅ Processing back to start');
 
-      const fakeStartMessage = {
-        chat: { id: query.message.chat.id },
-        from: query.from,
-        text: '/start'
-      };
-
       try {
         await bot.deleteMessage(query.message.chat.id, query.message.message_id);
       } catch (error) {
         console.warn('Could not delete message:', error.message);
       }
 
-      bot.emit('text', fakeStartMessage);
+      await handleStartCommand({
+        chat: { id: query.message.chat.id },
+        from: query.from
+      });
     } else {
       console.warn(`⚠️ Unknown callback data: ${data}`);
     }
@@ -142,7 +139,14 @@ async function handleCompanySelection(chatId, userId, messageId) {
             url: process.env.WEBAPP_URL
           }
         }
-      ],
+      ]
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: true
+  };
+
+  const backKeyboard = {
+    inline_keyboard: [
       [
         {
           text: '◀️ Назад к выбору',
@@ -153,17 +157,27 @@ async function handleCompanySelection(chatId, userId, messageId) {
   };
 
   try {
-    await bot.editMessageText(updatedText, {
-      chat_id: chatId,
-      message_id: messageId,
-      reply_markup: webAppKeyboard,
-      parse_mode: 'HTML'
-    });
-  } catch (error) {
-    console.warn('Could not edit message, sending new one:', error.message);
+    await bot.deleteMessage(chatId, messageId);
+
     await bot.sendMessage(chatId, updatedText, {
       reply_markup: webAppKeyboard,
       parse_mode: 'HTML'
+    });
+
+    // Send a separate message with back button
+    await bot.sendMessage(chatId, 'Или вернитесь к выбору:', {
+      reply_markup: backKeyboard
+    });
+
+  } catch (error) {
+    console.warn('Could not delete/send messages:', error.message);
+    await bot.sendMessage(chatId, updatedText, {
+      reply_markup: webAppKeyboard,
+      parse_mode: 'HTML'
+    });
+
+    await bot.sendMessage(chatId, 'Или вернитесь к выбору:', {
+      reply_markup: backKeyboard
     });
   }
 }
@@ -187,7 +201,7 @@ async function handleParticipantSelection(chatId, userId, messageId) {
   `;
 
   const backKeyboard = {
-    keyboard: [
+    inline_keyboard: [
       [
         {
           text: '◀️ Назад к выбору',
