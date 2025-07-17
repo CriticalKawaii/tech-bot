@@ -44,7 +44,7 @@ bot.onText(/\/start/, async (msg) => {
 
 
   const keyboard = {
-    keyboard: [
+    inline_keyboard: [
       [
         {
           text: '🏢 Компания',
