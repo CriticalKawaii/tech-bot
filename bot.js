@@ -68,7 +68,7 @@ async function handleStartCommand(msg) {
 
 bot.onText(/\/start/, handleStartCommand);
 
-//Admin
+// Simple admin command - just show stats
 bot.onText(/\/admin/, async (msg) => {
   const userId = msg.from.id;
 
@@ -77,61 +77,6 @@ bot.onText(/\/admin/, async (msg) => {
     return;
   }
 
-  const adminKeyboard = {
-    inline_keyboard: [
-      [
-        { text: '📊 Статистика заявок', callback_data: 'admin_stats' },
-        { text: '📋 Список заявок', callback_data: 'admin_list' }
-      ],
-      [
-        {
-          text: '🔔 Уведомления: ' + (adminSettings.notificationsEnabled ? 'ВКЛ' : 'ВЫКЛ'),
-          callback_data: 'admin_toggle_notifications'
-        }
-      ],
-      [
-        { text: '📥 Экспорт в CSV', callback_data: 'admin_export' }
-      ]
-    ]
-  };
-
-  await bot.sendMessage(msg.chat.id, '🔧 Панель администратора:', {
-    reply_markup: adminKeyboard
-  });
-});
-
-// admin callbacks
-bot.on('callback_query', async (query) => {
-  const chatId = query.message.chat.id;
-  const userId = query.from.id;
-  const data = query.data;
-
-  await bot.answerCallbackQuery(query.id);
-
-  if (data.startsWith('admin_')) {
-    if (!adminSettings.adminChatIds.includes(userId)) {
-      await bot.sendMessage(chatId, '❌ У вас нет прав администратора.');
-      return;
-    }
-
-    if (data === 'admin_stats') {
-      await handleAdminStats(chatId);
-    } else if (data === 'admin_list') {
-      await handleAdminList(chatId, query.message.message_id);
-    } else if (data === 'admin_toggle_notifications') {
-      adminSettings.notificationsEnabled = !adminSettings.notificationsEnabled;
-      await bot.sendMessage(chatId,
-        `🔔 Уведомления ${adminSettings.notificationsEnabled ? 'включены' : 'выключены'}`
-      );
-    } else if (data === 'admin_export') {
-      await handleAdminExport(chatId);
-    }
-  } else if (data.startsWith('view_app_')) {
-    await handleViewApplication(chatId, data.replace('view_app_', ''));
-  }
-});
-
-async function handleAdminStats(chatId) {
   const totalApplications = applications.size;
   const companyApps = Array.from(applications.values()).filter(app => app.type === 'company').length;
   const participantApps = Array.from(applications.values()).filter(app => app.type === 'participant').length;
@@ -147,114 +92,16 @@ async function handleAdminStats(chatId) {
 🏢 Заявок от компаний: ${companyApps}
 🎓 Заявок от участников: ${participantApps}
 ⏰ За последние 24 часа: ${last24h}
+
+<b>Последние 10 заявок:</b>
+${Array.from(applications.values())
+      .slice(-10)
+      .map(app => `• ${app.type === 'company' ? '🏢' : '🎓'} ${app.data.companyName || app.data.fio || 'Без названия'} (${app.id})`)
+      .join('\n')}
   `;
 
-  await bot.sendMessage(chatId, statsText, { parse_mode: 'HTML' });
-}
-
-async function handleAdminList(chatId, messageId) {
-  const appList = Array.from(applications.values()).slice(-20); // Last 10 applications
-
-  if (appList.length === 0) {
-    await bot.sendMessage(chatId, '📭 Пока нет заявок.');
-    return;
-  }
-
-  const listText = '📋 <b>Последние заявки:</b>\n\n' +
-    appList.map(app =>
-      `${app.type === 'company' ? '🏢' : '🎓'} ${app.data.companyName || app.data.fio || 'Без названия'}\n` +
-      `ID: <code>${app.id}</code>\n` +
-      `📅 ${new Date(app.submittedAt).toLocaleString('ru-RU')}`
-    ).join('\n\n');
-
-  const keyboard = {
-    inline_keyboard: appList.map(app => [{
-      text: `👁 ${app.id}`,
-      callback_data: `view_app_${app.id}`
-    }])
-  };
-
-  await bot.sendMessage(chatId, listText, {
-    parse_mode: 'HTML',
-    reply_markup: keyboard
-  });
-}
-
-async function handleViewApplication(chatId, appId) {
-  const app = applications.get(appId);
-  if (!app) {
-    await bot.sendMessage(chatId, '❌ Заявка не найдена.');
-    return;
-  }
-
-  let detailsText = `
-📄 <b>Детали заявки</b>
-🆔 ID: <code>${app.id}</code>
-📅 Дата: ${new Date(app.submittedAt).toLocaleString('ru-RU')}
-
-`;
-
-  if (app.type === 'company') {
-    detailsText += `
-🏢 <b>Компания:</b> ${app.data.companyName}
-📊 ИНН: ${app.data.inn}
-👤 Ментор: ${app.data.mentorName}
-📧 Email: ${app.data.mentorEmail}
-📱 Телефон: ${app.data.mentorPhone}
-💬 Telegram: ${app.data.mentorTelegram}
-
-<b>Готовность:</b> ${app.data.readiness}
-<b>Подразделение:</b> ${app.data.department}
-<b>Количество участников:</b> ${app.data.participantsCount}
-<b>Режим работы:</b> ${app.data.workMode}
-<b>График:</b> ${app.data.workSchedule}
-<b>Оплата:</b> ${app.data.paymentAbility}
-`;
-  } else {
-    detailsText += `
-🎓 <b>Участник:</b> ${app.data.fio}
-🎂 Возраст: ${app.data.age}
-📧 Email: ${app.data.email}
-📱 Телефон: ${app.data.phone}
-💬 Telegram: ${app.data.telegram}
-
-<b>ВУЗ:</b> ${app.data.university}
-<b>Направление:</b> ${app.data.direction}
-<b>Уровень:</b> ${app.data.educationLevel}
-<b>Статус:</b> ${app.data.status}
-<b>Курс:</b> ${app.data.course || 'Не указан'}
-
-<b>Режим работы:</b> ${app.data.workMode}
-<b>График:</b> ${app.data.workSchedule}
-<b>Оплата:</b> ${app.data.paymentPossibility}
-`;
-  }
-
-  await bot.sendMessage(chatId, detailsText, { parse_mode: 'HTML' });
-}
-
-async function handleAdminExport(chatId) {
-  if (applications.size === 0) {
-    await bot.sendMessage(chatId, '📭 Нет данных для экспорта.');
-    return;
-  }
-
-  let csvContent = 'ID,Type,Name,Email,Phone,Submitted\n';
-
-  applications.forEach((app) => {
-    const name = app.type === 'company' ? app.data.companyName : app.data.fio;
-    const email = app.type === 'company' ? app.data.mentorEmail : app.data.email;
-    const phone = app.type === 'company' ? app.data.mentorPhone : app.data.phone;
-
-    csvContent += `"${app.id}","${app.type}","${name}","${email}","${phone}","${app.submittedAt}"\n`;
-  });
-
-  // In a real implementation, you would save this to a file and send it
-  // TODO
-  await bot.sendMessage(chatId,
-    '📥 Экспорт готов. В реальной версии здесь будет файл CSV с данными всех заявок.'
-  );
-}
+  await bot.sendMessage(msg.chat.id, statsText, { parse_mode: 'HTML' });
+});
 
 bot.on('message', async (msg) => {
   if (msg.web_app_data) {
@@ -313,7 +160,7 @@ https://i.moscow/lomonosov_resident
       });
 
       if (adminSettings.notificationsEnabled) {
-        await notifyAdministrators(application);
+        await sendFullApplicationToAdmins(application);
       }
 
     } catch (error) {
@@ -324,32 +171,88 @@ https://i.moscow/lomonosov_resident
   }
 });
 
-async function notifyAdministrators(application) {
+async function sendFullApplicationToAdmins(application) {
   const emoji = application.type === 'company' ? '🏢' : '🎓';
-  const name = application.type === 'company'
-    ? application.data.companyName
-    : application.data.fio;
+  const type = application.type === 'company' ? 'Компания' : 'Участник';
 
-  const adminNotification = `
-🆕 Новая заявка!
+  let fullApplicationText = `
+🆕 <b>НОВАЯ ЗАЯВКА ${type.toUpperCase()}</b>
 
-${emoji} Тип: ${application.type === 'company' ? 'Компания' : 'Участник'}
-📝 Имя: ${name || 'Не указано'}
-🆔 ID: <code>${application.id}</code>
-⏰ Время: ${new Date(application.submittedAt).toLocaleString('ru-RU')}
+${emoji} <b>Тип:</b> ${type}
+🆔 <b>ID:</b> <code>${application.id}</code>
+⏰ <b>Время:</b> ${new Date(application.submittedAt).toLocaleString('ru-RU')}
 
-Используйте /admin для просмотра деталей.
+`;
 
+  if (application.type === 'company') {
+    fullApplicationText += `
+<b>═══ ИНФОРМАЦИЯ О КОМПАНИИ ═══</b>
+🏢 <b>Название:</b> ${application.data.companyName}
+📊 <b>ИНН:</b> ${application.data.inn}
+🟢 <b>Готовность:</b> ${application.data.readiness}
+
+<b>═══ КОНТАКТЫ МЕНТОРА ═══</b>
+👤 <b>ФИО и должность:</b> ${application.data.mentorName}
+📧 <b>Email:</b> ${application.data.mentorEmail}
+📱 <b>Телефон:</b> ${application.data.mentorPhone}
+💬 <b>Telegram:</b> ${application.data.mentorTelegram}
+
+<b>═══ ДЕТАЛИ СТАЖИРОВКИ ═══</b>
+🏛️ <b>Подразделение:</b> ${application.data.department}
+👥 <b>Количество участников:</b> ${application.data.participantsCount}
+🔧 <b>Ресурсы:</b> ${application.data.resources || 'Не указано'}
+🎯 <b>Краткосрочные цели:</b> ${application.data.shortTermGoals || 'Не указано'}
+
+<b>═══ ТРЕБОВАНИЯ И УСЛОВИЯ ═══</b>
+💼 <b>Навыки:</b> ${application.data.skillRequirements || 'Не указано'}
+📋 <b>Другие требования:</b> ${application.data.otherRequirements || 'Не указано'}
+🏠 <b>Режим работы:</b> ${application.data.workMode}
+⏱️ <b>График:</b> ${application.data.workSchedule}
+💰 <b>Оплата:</b> ${application.data.paymentAbility}
+🚀 <b>Трудоустройство:</b> ${application.data.employmentProspects || 'Не указано'}
+💭 <b>Прочие пожелания:</b> ${application.data.otherWishes || 'Нет'}
+`;
+  } else if (application.type === 'participant') {
+    fullApplicationText += `
+<b>═══ ЛИЧНАЯ ИНФОРМАЦИЯ ═══</b>
+👤 <b>ФИО:</b> ${application.data.fio}
+🎂 <b>Возраст:</b> ${application.data.age}
+🏠 <b>Проживает в Москве:</b> ${application.data.livesInMoscow === true ? 'Да' : application.data.livesInMoscow === false ? 'Нет' : 'Не указано'}
+
+<b>═══ КОНТАКТЫ ═══</b>
+📧 <b>Email:</b> ${application.data.email}
+📱 <b>Телефон:</b> ${application.data.phone}
+💬 <b>Telegram:</b> ${application.data.telegram}
+📄 <b>Резюме:</b> ${application.data.resumeFileName || 'Не загружено'}
+
+<b>═══ ОБРАЗОВАНИЕ ═══</b>
+🎓 <b>ВУЗ:</b> ${application.data.university}
+📚 <b>Направление:</b> ${application.data.direction}
+🎯 <b>Уровень:</b> ${application.data.educationLevel}
+📖 <b>Статус:</b> ${application.data.status}
+${application.data.course ? `📋 <b>Курс:</b> ${application.data.course}` : ''}
+
+<b>═══ ПРЕДПОЧТЕНИЯ ПО РАБОТЕ ═══</b>
+🏠 <b>Режим работы:</b> ${application.data.workMode}
+⏱️ <b>График:</b> ${application.data.workSchedule}
+${application.data.customHours ? `⏰ <b>Часов в неделю:</b> ${application.data.customHours}` : ''}
+💰 <b>Оплата:</b> ${application.data.paymentPossibility}
+`;
+  }
+
+  fullApplicationText += `
+<b>═══════════════════════</b>
 #новая_заявка #${application.type}
   `;
 
   for (const adminChatId of adminSettings.adminChatIds) {
     try {
-      await bot.sendMessage(adminChatId, adminNotification, {
+      await bot.sendMessage(adminChatId, fullApplicationText, {
         parse_mode: 'HTML'
       });
+      console.log(`✅ Full application sent to admin ${adminChatId}`);
     } catch (error) {
-      console.error(`Failed to notify admin ${adminChatId}:`, error.message);
+      console.error(`❌ Failed to notify admin ${adminChatId}:`, error.message);
     }
   }
 }
