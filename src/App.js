@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, User, ArrowLeft, ArrowRight, Upload, X } from 'lucide-react';
+import { Building, User, ArrowLeft, ArrowRight } from 'lucide-react';
 
 const App = () => {
   const [userType, setUserType] = useState(null);
@@ -8,11 +8,11 @@ const App = () => {
     // Участник
     fio: '',
     age: '',
-    livesInMoscow: null,
+    livesInMoscow: true,
     email: '',
     phone: '',
     telegram: '',
-    resume: null,
+    resumeLink: '',
     university: '',
     direction: '',
     educationLevel: '',
@@ -79,19 +79,17 @@ const App = () => {
     return cleanPhone.length >= 10;
   };
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file && (file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
-      setFormData(prev => ({ ...prev, resume: file }));
-      setErrors(prev => ({ ...prev, resume: undefined }));
-    } else {
-      setErrors(prev => ({ ...prev, resume: 'Пожалуйста, загрузите файл в формате PDF или DOCX' }));
+  const validateURL = (url) => {
+    if (!url.trim()) return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i.test(url);
     }
   };
 
-  const removeFile = () => {
-    setFormData(prev => ({ ...prev, resume: null }));
-  };
+
 
   const validateCurrentStep = () => {
     const newErrors = {};
@@ -107,7 +105,8 @@ const App = () => {
         if (!formData.phone.trim()) newErrors.phone = 'Введите телефон';
         else if (!validatePhone(formData.phone)) newErrors.phone = 'Введите корректный телефон';
         if (!formData.telegram.trim()) newErrors.telegram = 'Введите Telegram';
-        if (!formData.resume) newErrors.resume = 'Загрузите резюме';
+        if (!formData.resumeLink.trim()) newErrors.resumeLink = 'Введите ссылку на резюме';
+        else if (!validateURL(formData.resumeLink)) newErrors.resumeLink = 'Введите корректную ссылку';
       }
       else if (currentStep === 2) {
         if (!formData.university.trim()) newErrors.university = 'Введите название ВУЗа';
@@ -187,12 +186,6 @@ const App = () => {
       applicationType: userType,
       submittedAt: new Date().toISOString()
     };
-
-    // Remove file object before sending (in real app, you'd upload it separately)
-    if (submissionData.resume) {
-      submissionData.resumeFileName = submissionData.resume.name;
-      delete submissionData.resume;
-    }
 
     console.log('Submitting form data:', submissionData);
 
@@ -334,42 +327,18 @@ const App = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Резюме (DOCX/PDF) *</label>
-            <div className="relative">
-              <input
-                type="file"
-                onChange={handleFileUpload}
-                accept=".pdf,.docx"
-                className="hidden"
-                id="resume-upload"
-              />
-              <label
-                htmlFor="resume-upload"
-                className={`flex items-center justify-center w-full p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${errors.resume ? 'border-red-500' : 'border-gray-300'
-                  }`}
-              >
-                {formData.resume ? (
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-sm text-gray-600">{formData.resume.name}</span>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        removeFile();
-                      }}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    <Upload className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-600">Загрузить резюме</span>
-                  </div>
-                )}
-              </label>
-            </div>
-            {errors.resume && <p className="text-red-500 text-sm mt-1">{errors.resume}</p>}
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ссылка на резюме *</label>
+            <p className="text-xs text-gray-500 mb-2">
+              Разместите резюме на Google Drive, Яндекс.Диск, или другом облачном сервисе и вставьте ссылку
+            </p>
+            <input
+              type="url"
+              value={formData.resumeLink}
+              onChange={(e) => updateField('resumeLink', e.target.value)}
+              className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.resumeLink ? 'border-red-500' : 'border-gray-300'}`}
+              placeholder="https://drive.google.com/file/d/..."
+            />
+            {errors.resumeLink && <p className="text-red-500 text-sm mt-1">{errors.resumeLink}</p>}
           </div>
         </div>
       );
@@ -565,7 +534,7 @@ const App = () => {
               <div><strong>Email:</strong> {formData.email}</div>
               <div><strong>Телефон:</strong> {formData.phone}</div>
               <div><strong>Telegram:</strong> {formData.telegram}</div>
-              <div><strong>Резюме:</strong> {formData.resume?.name || 'Не загружено'}</div>
+              <div><strong>Резюме:</strong> <a href={formData.resumeLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">Ссылка на резюме</a></div>
               <div><strong>ВУЗ:</strong> {formData.university}</div>
               <div><strong>Направление:</strong> {formData.direction}</div>
               <div><strong>Уровень образования:</strong> {formData.educationLevel}</div>

@@ -68,7 +68,7 @@ async function handleStartCommand(msg) {
 
 bot.onText(/\/start/, handleStartCommand);
 
-// Simple admin command - just show stats
+// admin 
 bot.onText(/\/admin/, async (msg) => {
   const userId = msg.from.id;
 
@@ -102,6 +102,18 @@ ${Array.from(applications.values())
 
   await bot.sendMessage(msg.chat.id, statsText, { parse_mode: 'HTML' });
 });
+
+// Helper function to format resume link
+function formatResumeLink(link) {
+  if (!link) return 'Не указано';
+
+  // Make sure link has protocol
+  if (!link.startsWith('http://') && !link.startsWith('https://')) {
+    link = 'https://' + link;
+  }
+
+  return link;
+}
 
 bot.on('message', async (msg) => {
   if (msg.web_app_data) {
@@ -186,24 +198,24 @@ ${emoji} <b>Тип:</b> ${type}
 
   if (application.type === 'company') {
     fullApplicationText += `
-<b>═══ ИНФОРМАЦИЯ О КОМПАНИИ ═══</b>
+<b>- ИНФОРМАЦИЯ О КОМПАНИИ</b>
 🏢 <b>Название:</b> ${application.data.companyName}
 📊 <b>ИНН:</b> ${application.data.inn}
 🟢 <b>Готовность:</b> ${application.data.readiness}
 
-<b>═══ КОНТАКТЫ МЕНТОРА ═══</b>
+<b>- КОНТАКТЫ МЕНТОРА</b>
 👤 <b>ФИО и должность:</b> ${application.data.mentorName}
 📧 <b>Email:</b> ${application.data.mentorEmail}
 📱 <b>Телефон:</b> ${application.data.mentorPhone}
 💬 <b>Telegram:</b> ${application.data.mentorTelegram}
 
-<b>═══ ДЕТАЛИ СТАЖИРОВКИ ═══</b>
+<b>- ДЕТАЛИ СТАЖИРОВКИ</b>
 🏛️ <b>Подразделение:</b> ${application.data.department}
 👥 <b>Количество участников:</b> ${application.data.participantsCount}
 🔧 <b>Ресурсы:</b> ${application.data.resources || 'Не указано'}
 🎯 <b>Краткосрочные цели:</b> ${application.data.shortTermGoals || 'Не указано'}
 
-<b>═══ ТРЕБОВАНИЯ И УСЛОВИЯ ═══</b>
+<b>- ТРЕБОВАНИЯ И УСЛОВИЯ</b>
 💼 <b>Навыки:</b> ${application.data.skillRequirements || 'Не указано'}
 📋 <b>Другие требования:</b> ${application.data.otherRequirements || 'Не указано'}
 🏠 <b>Режим работы:</b> ${application.data.workMode}
@@ -214,25 +226,25 @@ ${emoji} <b>Тип:</b> ${type}
 `;
   } else if (application.type === 'participant') {
     fullApplicationText += `
-<b>═══ ЛИЧНАЯ ИНФОРМАЦИЯ ═══</b>
+<b>- ЛИЧНАЯ ИНФОРМАЦИЯ</b>
 👤 <b>ФИО:</b> ${application.data.fio}
 🎂 <b>Возраст:</b> ${application.data.age}
 🏠 <b>Проживает в Москве:</b> ${application.data.livesInMoscow === true ? 'Да' : application.data.livesInMoscow === false ? 'Нет' : 'Не указано'}
 
-<b>═══ КОНТАКТЫ ═══</b>
+<b>- КОНТАКТЫ</b>
 📧 <b>Email:</b> ${application.data.email}
 📱 <b>Телефон:</b> ${application.data.phone}
 💬 <b>Telegram:</b> ${application.data.telegram}
-📄 <b>Резюме:</b> ${application.data.resumeFileName || 'Не загружено'}
+📄 <b>Резюме:</b> ${formatResumeLink(application.data.resumeLink)}
 
-<b>═══ ОБРАЗОВАНИЕ ═══</b>
+<b>- ОБРАЗОВАНИЕ</b>
 🎓 <b>ВУЗ:</b> ${application.data.university}
 📚 <b>Направление:</b> ${application.data.direction}
 🎯 <b>Уровень:</b> ${application.data.educationLevel}
 📖 <b>Статус:</b> ${application.data.status}
 ${application.data.course ? `📋 <b>Курс:</b> ${application.data.course}` : ''}
 
-<b>═══ ПРЕДПОЧТЕНИЯ ПО РАБОТЕ ═══</b>
+<b>- ПРЕДПОЧТЕНИЯ ПО РАБОТЕ</b>
 🏠 <b>Режим работы:</b> ${application.data.workMode}
 ⏱️ <b>График:</b> ${application.data.workSchedule}
 ${application.data.customHours ? `⏰ <b>Часов в неделю:</b> ${application.data.customHours}` : ''}
@@ -241,7 +253,7 @@ ${application.data.customHours ? `⏰ <b>Часов в неделю:</b> ${appli
   }
 
   fullApplicationText += `
-<b>═══════════════════════</b>
+<b>══════════════</b>
 #новая_заявка #${application.type}
   `;
 
@@ -250,6 +262,7 @@ ${application.data.customHours ? `⏰ <b>Часов в неделю:</b> ${appli
       await bot.sendMessage(adminChatId, fullApplicationText, {
         parse_mode: 'HTML'
       });
+
       console.log(`✅ Full application sent to admin ${adminChatId}`);
     } catch (error) {
       console.error(`❌ Failed to notify admin ${adminChatId}:`, error.message);
@@ -265,6 +278,7 @@ bot.onText(/\/help/, async (msg) => {
 /start - Открыть форму заявки
 /help - Показать эту справку
 /status - Проверить статус бота
+/admin - Статистика заявок (только для админов)
 
 <b>Что делает этот бот:</b>
 • Помогает компаниям подавать заявки на участие в программе
