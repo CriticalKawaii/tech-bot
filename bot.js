@@ -20,7 +20,7 @@ if (process.env.DEBUG) {
 
 const applications = new Map();
 const adminSettings = {
-  adminChatIds: [848907805],
+  adminChatIds: [942719698], 
   notificationsEnabled: true
 };
 
